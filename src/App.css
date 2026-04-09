@@ -384,6 +384,22 @@ select:focus {
   font-size: 0.86rem;
 }
 
+.verification-box {
+  margin-top: 0.25rem;
+  border: 1px dashed #c8b9f4;
+  background: #f3ecff;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.verification-box p,
+.verification-box small {
+  margin: 0;
+  color: #574a86;
+}
+
 .connect-form {
   display: grid;
   gap: 0.75rem;

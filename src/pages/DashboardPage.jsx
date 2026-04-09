@@ -5,6 +5,7 @@ function DashboardPage({
   user,
   consents,
   linkedAccounts,
+  liveVerification,
   decisionSummary,
   activities,
   onUpsertConsent,
@@ -12,6 +13,7 @@ function DashboardPage({
   onEvaluateDecision,
   onConnectIntegration,
   onDisconnectIntegration,
+  onVerifyIntegrationLive,
   onRefreshDashboard,
   onLogout
 }) {
@@ -147,6 +149,31 @@ function DashboardPage({
                       <button className="btn btn-secondary" onClick={() => onDisconnectIntegration(provider.key)}>
                         Disconnect
                       </button>
+                      <button className="btn btn-secondary" onClick={() => onVerifyIntegrationLive(provider.key)}>
+                        Verify Live
+                      </button>
+                      {liveVerification?.[provider.key] && (
+                        <div className="verification-box">
+                          {liveVerification[provider.key].verified ? (
+                            <>
+                              <p>
+                                Live verified at{" "}
+                                {new Date(liveVerification[provider.key].verifiedAt).toLocaleString()}
+                              </p>
+                              <small>
+                                Profile:{" "}
+                                {liveVerification[provider.key].liveProfile?.displayName ||
+                                  liveVerification[provider.key].liveProfile?.email ||
+                                  "Account"}
+                              </small>
+                            </>
+                          ) : (
+                            <small>
+                              Verification failed: {liveVerification[provider.key].detail || "Unknown error"}
+                            </small>
+                          )}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>

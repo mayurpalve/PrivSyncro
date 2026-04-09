@@ -15,6 +15,7 @@ function App() {
 
   const [consents, setConsents] = useState([]);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const [liveVerification, setLiveVerification] = useState({});
   const [decisionSummary, setDecisionSummary] = useState({
     appSummaries: [],
     totals: { apps: 0, allowed: 0, limited: 0, blocked: 0 }
@@ -39,6 +40,7 @@ function App() {
     setUser(null);
     setConsents([]);
     setLinkedAccounts([]);
+    setLiveVerification({});
     setDecisionSummary({
       appSummaries: [],
       totals: { apps: 0, allowed: 0, limited: 0, blocked: 0 }
@@ -187,9 +189,36 @@ function App() {
     try {
       await API.delete(`/integrations/${provider}`);
       await fetchLinkedAccounts();
+      setLiveVerification((prev) => {
+        const updated = { ...prev };
+        delete updated[provider];
+        return updated;
+      });
       setMessage(`${provider} disconnected`);
     } catch (error) {
       setMessage(error.response?.data?.message || `Unable to disconnect ${provider}`);
+    }
+  };
+
+  const handleVerifyIntegrationLive = async (provider) => {
+    try {
+      const response = await API.get(`/integrations/${provider}/verify`);
+      setLiveVerification((prev) => ({
+        ...prev,
+        [provider]: response.data
+      }));
+      setMessage(`${provider} live verification successful`);
+    } catch (error) {
+      const payload = error.response?.data;
+      setLiveVerification((prev) => ({
+        ...prev,
+        [provider]: {
+          provider,
+          verified: false,
+          detail: payload?.detail || payload?.message || "Verification failed"
+        }
+      }));
+      setMessage(payload?.message || `Unable to verify ${provider}`);
     }
   };
 
@@ -211,6 +240,7 @@ function App() {
           user={user}
           consents={consents}
           linkedAccounts={linkedAccounts}
+          liveVerification={liveVerification}
           decisionSummary={decisionSummary}
           activities={activities}
           onUpsertConsent={handleUpsertConsent}
@@ -218,6 +248,7 @@ function App() {
           onEvaluateDecision={handleEvaluateDecision}
           onConnectIntegration={handleConnectIntegration}
           onDisconnectIntegration={handleDisconnectIntegration}
+          onVerifyIntegrationLive={handleVerifyIntegrationLive}
           onRefreshDashboard={bootstrapDashboard}
           onLogout={clearSession}
         />
