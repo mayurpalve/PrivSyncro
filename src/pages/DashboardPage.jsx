@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppCard from "../components/AppCard";
 
 function DashboardPage({
@@ -35,6 +35,28 @@ function DashboardPage({
 
   const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
   const deniedCount = consents.length - activeCount;
+  const linkedAppOptions = useMemo(() => {
+    const unique = new Map();
+
+    for (const account of linkedAccounts) {
+      if (!unique.has(account.provider)) {
+        unique.set(account.provider, account);
+      }
+    }
+
+    return Array.from(unique.values()).map((account) => ({
+      value: account.provider,
+      label: account.displayName
+        ? `${account.provider} (${account.displayName})`
+        : account.provider
+    }));
+  }, [linkedAccounts]);
+
+  useEffect(() => {
+    if (!newPolicy.appId && linkedAppOptions.length > 0) {
+      setNewPolicy((prev) => ({ ...prev, appId: linkedAppOptions[0].value }));
+    }
+  }, [linkedAppOptions, newPolicy.appId]);
 
   const handleCreatePolicy = async (event) => {
     event.preventDefault();
@@ -206,16 +228,28 @@ function DashboardPage({
         <section id="consents" className="panel panel--split">
           <div>
             <h2>Create Consent Policy</h2>
+            {linkedAppOptions.length === 0 && (
+              <p>Connect at least one integration first to create a consent policy.</p>
+            )}
             <form className="connect-form" onSubmit={handleCreatePolicy}>
               <label>
                 App ID
-                <input
-                  type="text"
-                  placeholder="spotify"
+                <select
                   value={newPolicy.appId}
                   onChange={(event) => setNewPolicy((prev) => ({ ...prev, appId: event.target.value }))}
+                  disabled={linkedAppOptions.length === 0}
                   required
-                />
+                >
+                  {linkedAppOptions.length === 0 ? (
+                    <option value="">No connected apps</option>
+                  ) : (
+                    linkedAppOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))
+                  )}
+                </select>
               </label>
 
               <label>
@@ -262,7 +296,7 @@ function DashboardPage({
                 />
               </label>
 
-              <button className="btn" type="submit">
+              <button className="btn" type="submit" disabled={linkedAppOptions.length === 0}>
                 Save Policy
               </button>
             </form>
