@@ -100,7 +100,20 @@ function DashboardPage({
                   {linked ? (
                     <>
                       <p>Connected as {linked.displayName || linked.email || "Account"}</p>
+                      {linked.email && <small>Email: {linked.email}</small>}
                       <small>Last sync: {new Date(linked.updatedAt).toLocaleString()}</small>
+                      <div className="integration-permissions">
+                        <p>Granted permissions</p>
+                        {linked.grantedPermissions?.length ? (
+                          <ul className="integration-scope-list">
+                            {linked.grantedPermissions.map((permission) => (
+                              <li key={permission.scope}>{permission.label}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <small>No permission scopes returned by provider.</small>
+                        )}
+                      </div>
                       <button className="btn btn-secondary" onClick={() => onDisconnectIntegration(provider.key)}>
                         Disconnect
                       </button>

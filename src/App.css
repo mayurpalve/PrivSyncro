@@ -244,6 +244,32 @@ button.link-btn {
   margin: 0;
 }
 
+.integration-permissions {
+  border-top: 1px solid #dde6f1;
+  padding-top: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.integration-permissions p {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  color: #1f2937;
+}
+
+.integration-scope-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.integration-scope-list li {
+  color: #334155;
+  font-size: 0.86rem;
+}
+
 .connect-form {
   display: grid;
   gap: 0.6rem;
