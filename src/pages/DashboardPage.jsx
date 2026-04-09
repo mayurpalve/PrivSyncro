@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AppCard from "../components/AppCard";
 
 function DashboardPage({
@@ -33,30 +33,70 @@ function DashboardPage({
     return map;
   }, [decisionSummary]);
 
-  const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
-  const deniedCount = consents.length - activeCount;
   const linkedAppOptions = useMemo(() => {
     const unique = new Map();
-
     for (const account of linkedAccounts) {
       if (!unique.has(account.provider)) {
         unique.set(account.provider, account);
       }
     }
-
     return Array.from(unique.values()).map((account) => ({
       value: account.provider,
-      label: account.displayName
-        ? `${account.provider} (${account.displayName})`
-        : account.provider
+      label: account.displayName ? `${account.provider} (${account.displayName})` : account.provider
     }));
   }, [linkedAccounts]);
 
-  useEffect(() => {
-    if (!newPolicy.appId && linkedAppOptions.length > 0) {
-      setNewPolicy((prev) => ({ ...prev, appId: linkedAppOptions[0].value }));
+  const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
+  const deniedCount = consents.length - activeCount;
+  const consentRate = consents.length ? Math.round((activeCount / consents.length) * 100) : 0;
+
+  const statusChecklist = [
+    {
+      label: "Configuration",
+      details: "JWT, database, and policy services are configured.",
+      ok: true
+    },
+    {
+      label: "Integration",
+      details: linkedAccounts.length
+        ? `${linkedAccounts.length} provider account(s) connected.`
+        : "No live provider connected yet.",
+      ok: linkedAccounts.length > 0
+    },
+    {
+      label: "Verification",
+      details: Object.values(liveVerification || {}).some((item) => item?.verified)
+        ? "Live verification completed for at least one integration."
+        : "Run Verify Live on a provider to validate real-time access.",
+      ok: Object.values(liveVerification || {}).some((item) => item?.verified)
     }
-  }, [linkedAppOptions, newPolicy.appId]);
+  ];
+
+  const interactionSeries = useMemo(() => {
+    const last = [...activities].slice(0, 18).reverse();
+    if (!last.length) {
+      return [14, 12, 16, 11, 17, 10, 19, 13, 15, 14, 20, 16, 18, 17, 19, 18, 21, 20];
+    }
+
+    const maxDuration = Math.max(...last.map((item) => item.duration || 1));
+    return last.map((item) => Math.max(2, Math.round(((item.duration || 0) / maxDuration) * 24)));
+  }, [activities]);
+
+  const linePath = useMemo(() => {
+    const points = interactionSeries.map((value, index) => {
+      const x = index * (560 / Math.max(interactionSeries.length - 1, 1));
+      const y = 120 - value * 3.5;
+      return `${x},${y}`;
+    });
+
+    return points.join(" ");
+  }, [interactionSeries]);
+
+  const getIndicatorClass = (indicator) => {
+    if (indicator === "RED") return "risk-pill risk-pill--red";
+    if (indicator === "YELLOW") return "risk-pill risk-pill--yellow";
+    return "risk-pill risk-pill--green";
+  };
 
   const handleCreatePolicy = async (event) => {
     event.preventDefault();
@@ -73,76 +113,111 @@ function DashboardPage({
       conditions: newPolicy.conditions || null
     });
 
-    setNewPolicy({
-      appId: "",
-      dataType: "location",
-      status: "allowed",
-      expiry: "",
-      conditions: ""
-    });
-  };
-
-  const getIndicatorClass = (indicator) => {
-    if (indicator === "RED") return "risk-badge risk-badge--red";
-    if (indicator === "YELLOW") return "risk-badge risk-badge--yellow";
-    return "risk-badge risk-badge--green";
+    setNewPolicy((prev) => ({ ...prev, conditions: "", expiry: "" }));
   };
 
   return (
-    <div className="dashboard-layout">
-      <aside className="sidebar">
-        <h2>PrivSyncro</h2>
-        <p className="sidebar__tag">Intelligent Privacy Command Center</p>
-        <nav className="sidebar__nav">
-          <a href="#overview">Overview</a>
-          <a href="#integrations">Integrations</a>
-          <a href="#consents">Consent Policies</a>
-          <a href="#risk">Risk & Decision</a>
-          <a href="#activity">Activity Logs</a>
+    <div className="shell-layout">
+      <aside className="left-nav">
+        <div className="brand">PrivSyncro</div>
+        <nav>
+          <button className="nav-item nav-item--active">Dashboard</button>
+          <button className="nav-item">Integrations</button>
+          <button className="nav-item">Policies</button>
+          <button className="nav-item">Risk</button>
+          <button className="nav-item">Settings</button>
         </nav>
-        <button className="btn btn-secondary" onClick={onRefreshDashboard}>
-          Refresh
-        </button>
-        <button className="btn btn-secondary" onClick={onLogout}>
-          Logout
+
+        <div className="help-card">
+          <h4>Need help?</h4>
+          <p>Check support docs for policy setup and verification flows.</p>
+          <button className="btn btn-secondary">Contact Support</button>
+        </div>
+
+        <button className="nav-item" onClick={onLogout}>
+          Log out
         </button>
       </aside>
 
-      <main className="workspace">
-        <header id="overview" className="workspace__header">
+      <main className="main-pane">
+        <header className="top-bar">
           <div>
-            <p className="eyebrow">Privacy Decision Workspace</p>
-            <h1>Welcome back, {user?.name || "User"}</h1>
-            <p>Manage live integrations, consent policies, risk posture, and access decisions in one panel.</p>
+            <h1>{user?.email || "workspace"}</h1>
+            <p>Intelligent privacy dashboard</p>
+          </div>
+          <div className="top-actions">
+            <button className="btn btn-secondary" onClick={onRefreshDashboard}>
+              Refresh Data
+            </button>
           </div>
         </header>
 
-        <section className="kpi-grid">
-          <article className="kpi-card">
-            <p>Active Consent Policies</p>
-            <h3>{activeCount}</h3>
+        <section className="stats-row">
+          <article className="metric-card">
+            <p>Policy Displays</p>
+            <h3>{consents.length}</h3>
           </article>
-          <article className="kpi-card">
-            <p>Denied / Revoked Policies</p>
-            <h3>{deniedCount}</h3>
+          <article className="metric-card">
+            <p>Interaction Rate</p>
+            <h3>{activities.length}</h3>
           </article>
-          <article className="kpi-card">
-            <p>Risk-scored Apps</p>
-            <h3>{decisionSummary.totals?.apps || 0}</h3>
-          </article>
-          <article className="kpi-card">
-            <p>Linked Accounts</p>
+          <article className="metric-card">
+            <p>Connected Providers</p>
             <h3>{linkedAccounts.length}</h3>
+          </article>
+          <article className="metric-card metric-card--accent">
+            <p>Consent Rate</p>
+            <h3>{consentRate}%</h3>
           </article>
         </section>
 
-        <section id="integrations" className="panel">
+        <section className="grid-main">
+          <article className="panel-xl">
+            <div className="panel-head">
+              <h2>Interaction Balance</h2>
+              <span className="status-ok">On track</span>
+            </div>
+
+            <div className="mini-metrics">
+              <div>
+                <small>Allowed Policies</small>
+                <strong>{activeCount}</strong>
+              </div>
+              <div>
+                <small>Denied Policies</small>
+                <strong>{deniedCount}</strong>
+              </div>
+              <div>
+                <small>Evaluated Apps</small>
+                <strong>{decisionSummary.totals?.apps || 0}</strong>
+              </div>
+            </div>
+
+            <svg className="line-chart" viewBox="0 0 560 140" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points={linePath} />
+            </svg>
+          </article>
+
+          <article className="panel-status">
+            <h2>Status</h2>
+            <ul>
+              {statusChecklist.map((item) => (
+                <li key={item.label}>
+                  <span className={item.ok ? "dot dot--ok" : "dot dot--warn"} />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <p>{item.details}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        <section className="panel">
           <div className="panel__head">
-            <h2>Connected via PrivSyncro</h2>
-            <p>
-              Manage integrations connected through PrivSyncro and open provider settings for external app
-              permissions.
-            </p>
+            <h2>Connected Providers</h2>
+            <p>Connect, verify, and manage provider-level permissions.</p>
           </div>
 
           <div className="integration-grid">
@@ -172,35 +247,30 @@ function DashboardPage({
                           <small>No permission scopes returned by provider.</small>
                         )}
                       </div>
-                      <button className="btn btn-secondary" onClick={() => onDisconnectIntegration(provider.key)}>
-                        Revoke in PrivSyncro
-                      </button>
-                      {linked.providerManageUrl && (
-                        <a
-                          className="btn btn-linkout"
-                          href={linked.providerManageUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Manage in {provider.label}
-                        </a>
-                      )}
-                      <button className="btn btn-secondary" onClick={() => onVerifyIntegrationLive(provider.key)}>
-                        Verify Live
-                      </button>
+
+                      <div className="card-actions">
+                        <button className="btn btn-secondary" onClick={() => onDisconnectIntegration(provider.key)}>
+                          Revoke in PrivSyncro
+                        </button>
+                        {linked.providerManageUrl && (
+                          <a className="btn btn-linkout" href={linked.providerManageUrl} target="_blank" rel="noreferrer">
+                            Manage in Provider
+                          </a>
+                        )}
+                        <button className="btn btn-secondary" onClick={() => onVerifyIntegrationLive(provider.key)}>
+                          Verify Live
+                        </button>
+                      </div>
+
                       {liveVerification?.[provider.key] && (
                         <div className="verification-box">
                           {liveVerification[provider.key].verified ? (
                             <>
                               <p>
-                                Live verified at{" "}
-                                {new Date(liveVerification[provider.key].verifiedAt).toLocaleString()}
+                                Live verified at {new Date(liveVerification[provider.key].verifiedAt).toLocaleString()}
                               </p>
                               <small>
-                                Profile:{" "}
-                                {liveVerification[provider.key].liveProfile?.displayName ||
-                                  liveVerification[provider.key].liveProfile?.email ||
-                                  "Account"}
+                                Profile: {liveVerification[provider.key].liveProfile?.displayName || "Account"}
                               </small>
                             </>
                           ) : (
@@ -225,15 +295,15 @@ function DashboardPage({
           </div>
         </section>
 
-        <section id="consents" className="panel panel--split">
+        <section className="panel panel--split">
           <div>
             <h2>Create Consent Policy</h2>
             {linkedAppOptions.length === 0 && (
-              <p>Connect at least one integration first to create a consent policy.</p>
+              <p>Connect at least one integration first to create a policy.</p>
             )}
             <form className="connect-form" onSubmit={handleCreatePolicy}>
               <label>
-                App ID
+                Provider
                 <select
                   value={newPolicy.appId}
                   onChange={(event) => setNewPolicy((prev) => ({ ...prev, appId: event.target.value }))}
@@ -278,7 +348,7 @@ function DashboardPage({
               </label>
 
               <label>
-                Expiry (optional)
+                Expiry
                 <input
                   type="datetime-local"
                   value={newPolicy.expiry}
@@ -303,9 +373,9 @@ function DashboardPage({
           </div>
 
           <div className="consent-board">
-            <h2>Consent Policies</h2>
+            <h2>Policies & Decisions</h2>
             {consents.length === 0 ? (
-              <p>No policies yet. Create one to start decision-based privacy control.</p>
+              <p>No policies yet.</p>
             ) : (
               <div className="consent-grid">
                 {consents.map((consent) => (
@@ -323,10 +393,10 @@ function DashboardPage({
           </div>
         </section>
 
-        <section id="risk" className="panel">
+        <section className="panel">
           <div className="panel__head">
-            <h2>Risk & Decision Status</h2>
-            <p>System-generated recommendation from privacy risk model.</p>
+            <h2>Risk Decision Board</h2>
+            <p>Recommended actions from privacy engine.</p>
           </div>
 
           {decisionSummary.appSummaries?.length ? (
@@ -344,14 +414,14 @@ function DashboardPage({
               ))}
             </div>
           ) : (
-            <p>No risk evaluations available yet. Add consent policies and evaluate decisions.</p>
+            <p>No risk evaluations available yet.</p>
           )}
         </section>
 
-        <section id="activity" className="panel">
+        <section className="panel">
           <div className="panel__head">
             <h2>Activity Logs</h2>
-            <p>Recent data access history used by frequency and anomaly calculations.</p>
+            <p>Recent accesses used for anomaly and frequency analysis.</p>
           </div>
 
           {activities.length ? (
@@ -359,7 +429,7 @@ function DashboardPage({
               <table className="activity-table">
                 <thead>
                   <tr>
-                    <th>App</th>
+                    <th>Provider</th>
                     <th>Data Type</th>
                     <th>Timestamp</th>
                     <th>Duration (s)</th>
