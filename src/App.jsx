@@ -12,9 +12,15 @@ function App() {
     return raw ? JSON.parse(raw) : null;
   });
   const [view, setView] = useState(token ? "dashboard" : "login");
-  const [apps, setApps] = useState([]);
+
   const [consents, setConsents] = useState([]);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const [decisionSummary, setDecisionSummary] = useState({
+    appSummaries: [],
+    totals: { apps: 0, allowed: 0, limited: 0, blocked: 0 }
+  });
+  const [activities, setActivities] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -31,19 +37,18 @@ function App() {
     localStorage.removeItem("user");
     setToken("");
     setUser(null);
-    setApps([]);
     setConsents([]);
     setLinkedAccounts([]);
+    setDecisionSummary({
+      appSummaries: [],
+      totals: { apps: 0, allowed: 0, limited: 0, blocked: 0 }
+    });
+    setActivities([]);
     setView("login");
   };
 
-  const fetchApps = async () => {
-    const response = await API.get("/apps");
-    setApps(response.data);
-  };
-
   const fetchConsents = async () => {
-    const response = await API.get("/consents");
+    const response = await API.get("/consent");
     setConsents(response.data);
   };
 
@@ -52,10 +57,25 @@ function App() {
     setLinkedAccounts(response.data);
   };
 
+  const fetchDecisionSummary = async () => {
+    const response = await API.get("/decision/summary");
+    setDecisionSummary(response.data);
+  };
+
+  const fetchActivities = async () => {
+    const response = await API.get("/activity", { params: { limit: 50 } });
+    setActivities(response.data);
+  };
+
   const bootstrapDashboard = async () => {
     try {
       setLoading(true);
-      await Promise.all([fetchApps(), fetchConsents(), fetchLinkedAccounts()]);
+      await Promise.all([
+        fetchConsents(),
+        fetchLinkedAccounts(),
+        fetchDecisionSummary(),
+        fetchActivities()
+      ]);
     } catch (error) {
       setMessage(error.response?.data?.message || "Failed to load dashboard data");
     } finally {
@@ -94,7 +114,7 @@ function App() {
     try {
       setLoading(true);
       setMessage("");
-      const response = await API.post("/auth/register", payload);
+      const response = await API.post("/auth/signup", payload);
       saveSession(response.data);
       setMessage("Registration successful");
     } catch (error) {
@@ -118,58 +138,39 @@ function App() {
     }
   };
 
-  const handleCreateConsent = async (payload) => {
+  const handleUpsertConsent = async (payload) => {
     try {
       setLoading(true);
       setMessage("");
-      await API.post("/consents", payload);
-      await fetchConsents();
-      setMessage("Consent created");
+      await API.post("/consent", payload);
+      await Promise.all([fetchConsents(), fetchDecisionSummary()]);
+      setMessage("Consent policy saved");
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to create consent");
+      setMessage(error.response?.data?.message || "Unable to save consent policy");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTogglePermission = async (consentId, permission) => {
-    try {
-      const targetConsent = consents.find((consent) => consent._id === consentId);
-      if (!targetConsent) return;
-
-      const updatedPermissions = targetConsent.permissions.includes(permission)
-        ? targetConsent.permissions.filter((item) => item !== permission)
-        : [...targetConsent.permissions, permission];
-
-      await API.put(`/consents/${consentId}`, {
-        permissions: updatedPermissions,
-        isActive: true
-      });
-
-      await fetchConsents();
-      setMessage("Consent permissions updated");
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to update permission");
-    }
-  };
-
-  const handleUpdateExpiry = async (consentId, expiresAt) => {
-    try {
-      await API.put(`/consents/${consentId}`, { expiresAt });
-      await fetchConsents();
-      setMessage("Consent expiry updated");
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to update expiry");
-    }
-  };
-
   const handleRevokeConsent = async (consentId) => {
     try {
-      await API.delete(`/consents/${consentId}`);
-      await fetchConsents();
-      setMessage("Consent revoked");
+      await API.patch(`/consent/${consentId}/revoke`);
+      await Promise.all([fetchConsents(), fetchDecisionSummary()]);
+      setMessage("Consent policy revoked");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to revoke consent");
+    }
+  };
+
+  const handleEvaluateDecision = async ({ appId, dataType, duration = 60 }) => {
+    try {
+      const response = await API.post("/decision", { appId, dataType, duration });
+      await Promise.all([fetchDecisionSummary(), fetchActivities()]);
+      setMessage(
+        `Decision: ${response.data.decision} | Risk: ${Number(response.data.riskScore).toFixed(2)}`
+      );
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to evaluate decision");
     }
   };
 
@@ -208,15 +209,16 @@ function App() {
       {view === "dashboard" && (
         <DashboardPage
           user={user}
-          apps={apps}
           consents={consents}
           linkedAccounts={linkedAccounts}
-          onSyncConsent={handleCreateConsent}
-          onTogglePermission={handleTogglePermission}
+          decisionSummary={decisionSummary}
+          activities={activities}
+          onUpsertConsent={handleUpsertConsent}
           onRevokeConsent={handleRevokeConsent}
-          onUpdateExpiry={handleUpdateExpiry}
+          onEvaluateDecision={handleEvaluateDecision}
           onConnectIntegration={handleConnectIntegration}
           onDisconnectIntegration={handleDisconnectIntegration}
+          onRefreshDashboard={bootstrapDashboard}
           onLogout={clearSession}
         />
       )}

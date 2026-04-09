@@ -3,39 +3,65 @@ import AppCard from "../components/AppCard";
 
 function DashboardPage({
   user,
-  apps,
   consents,
   linkedAccounts,
-  onSyncConsent,
-  onTogglePermission,
+  decisionSummary,
+  activities,
+  onUpsertConsent,
   onRevokeConsent,
-  onUpdateExpiry,
+  onEvaluateDecision,
   onConnectIntegration,
   onDisconnectIntegration,
+  onRefreshDashboard,
   onLogout
 }) {
-  const [selectedAppId, setSelectedAppId] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [newPolicy, setNewPolicy] = useState({
+    appId: "",
+    dataType: "location",
+    status: "allowed",
+    expiry: "",
+    conditions: ""
+  });
 
-  const connectedAppIds = useMemo(() => new Set(consents.map((consent) => consent.appId?._id)), [consents]);
-  const availableApps = apps.filter((app) => !connectedAppIds.has(app._id));
+  const summaryByApp = useMemo(() => {
+    const map = {};
+    for (const item of decisionSummary.appSummaries || []) {
+      map[item.appId] = item;
+    }
+    return map;
+  }, [decisionSummary]);
 
-  const activeCount = consents.filter((consent) => consent.isActive && !consent.isExpired).length;
-  const revokedCount = consents.filter((consent) => !consent.isActive || consent.isExpired).length;
-  const permissionsCount = consents.reduce((total, consent) => total + consent.permissions.length, 0);
+  const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
+  const deniedCount = consents.length - activeCount;
 
-  const handleConnectApp = async (event) => {
+  const handleCreatePolicy = async (event) => {
     event.preventDefault();
-    if (!selectedAppId) return;
 
-    await onSyncConsent({
-      appId: selectedAppId,
-      permissions: [],
-      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+    if (!newPolicy.appId.trim() || !newPolicy.dataType.trim()) {
+      return;
+    }
+
+    await onUpsertConsent({
+      appId: newPolicy.appId.trim(),
+      dataType: newPolicy.dataType.trim().toLowerCase(),
+      status: newPolicy.status,
+      expiry: newPolicy.expiry ? new Date(newPolicy.expiry).toISOString() : null,
+      conditions: newPolicy.conditions || null
     });
 
-    setSelectedAppId("");
-    setExpiresAt("");
+    setNewPolicy({
+      appId: "",
+      dataType: "location",
+      status: "allowed",
+      expiry: "",
+      conditions: ""
+    });
+  };
+
+  const getIndicatorClass = (indicator) => {
+    if (indicator === "RED") return "risk-badge risk-badge--red";
+    if (indicator === "YELLOW") return "risk-badge risk-badge--yellow";
+    return "risk-badge risk-badge--green";
   };
 
   return (
@@ -45,9 +71,14 @@ function DashboardPage({
         <p className="sidebar__tag">Intelligent Privacy Command Center</p>
         <nav className="sidebar__nav">
           <a href="#overview">Overview</a>
-          <a href="#integrations">Live Integrations</a>
+          <a href="#integrations">Integrations</a>
           <a href="#consents">Consent Policies</a>
+          <a href="#risk">Risk & Decision</a>
+          <a href="#activity">Activity Logs</a>
         </nav>
+        <button className="btn btn-secondary" onClick={onRefreshDashboard}>
+          Refresh
+        </button>
         <button className="btn btn-secondary" onClick={onLogout}>
           Logout
         </button>
@@ -56,27 +87,27 @@ function DashboardPage({
       <main className="workspace">
         <header id="overview" className="workspace__header">
           <div>
-            <p className="eyebrow">Security workspace</p>
+            <p className="eyebrow">Privacy Decision Workspace</p>
             <h1>Welcome back, {user?.name || "User"}</h1>
-            <p>Monitor account links, permission scopes, and revocations in one place.</p>
+            <p>Manage live integrations, consent policies, risk posture, and access decisions in one panel.</p>
           </div>
         </header>
 
         <section className="kpi-grid">
           <article className="kpi-card">
-            <p>Active Consents</p>
+            <p>Active Consent Policies</p>
             <h3>{activeCount}</h3>
           </article>
           <article className="kpi-card">
-            <p>Revoked / Expired</p>
-            <h3>{revokedCount}</h3>
+            <p>Denied / Revoked Policies</p>
+            <h3>{deniedCount}</h3>
           </article>
           <article className="kpi-card">
-            <p>Total Granted Permissions</p>
-            <h3>{permissionsCount}</h3>
+            <p>Risk-scored Apps</p>
+            <h3>{decisionSummary.totals?.apps || 0}</h3>
           </article>
           <article className="kpi-card">
-            <p>Live Linked Accounts</p>
+            <p>Linked Accounts</p>
             <h3>{linkedAccounts.length}</h3>
           </article>
         </section>
@@ -84,13 +115,13 @@ function DashboardPage({
         <section id="integrations" className="panel">
           <div className="panel__head">
             <h2>Live Integrations</h2>
-            <p>Connect your real Spotify and Google accounts via OAuth.</p>
+            <p>Connect your real accounts to capture granted OAuth permission scopes.</p>
           </div>
 
           <div className="integration-grid">
             {[
               { key: "spotify", label: "Spotify" },
-              { key: "google", label: "Google Fit" }
+              { key: "google", label: "Google" }
             ].map((provider) => {
               const linked = linkedAccounts.find((item) => item.provider === provider.key);
 
@@ -100,7 +131,6 @@ function DashboardPage({
                   {linked ? (
                     <>
                       <p>Connected as {linked.displayName || linked.email || "Account"}</p>
-                      {linked.email && <small>Email: {linked.email}</small>}
                       <small>Last sync: {new Date(linked.updatedAt).toLocaleString()}</small>
                       <div className="integration-permissions">
                         <p>Granted permissions</p>
@@ -134,19 +164,65 @@ function DashboardPage({
 
         <section id="consents" className="panel panel--split">
           <div>
-            <h2>Create Consent</h2>
-            <form className="connect-form" onSubmit={handleConnectApp}>
-              <select value={selectedAppId} onChange={(event) => setSelectedAppId(event.target.value)}>
-                <option value="">Select connected application</option>
-                {availableApps.map((app) => (
-                  <option key={app._id} value={app._id}>
-                    {app.name} ({app.provider})
-                  </option>
-                ))}
-              </select>
-              <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
-              <button className="btn" type="submit" disabled={!selectedAppId}>
-                Create Consent Record
+            <h2>Create Consent Policy</h2>
+            <form className="connect-form" onSubmit={handleCreatePolicy}>
+              <label>
+                App ID
+                <input
+                  type="text"
+                  placeholder="spotify"
+                  value={newPolicy.appId}
+                  onChange={(event) => setNewPolicy((prev) => ({ ...prev, appId: event.target.value }))}
+                  required
+                />
+              </label>
+
+              <label>
+                Data Type
+                <select
+                  value={newPolicy.dataType}
+                  onChange={(event) => setNewPolicy((prev) => ({ ...prev, dataType: event.target.value }))}
+                >
+                  <option value="location">location</option>
+                  <option value="health">health</option>
+                  <option value="contacts">contacts</option>
+                  <option value="email">email</option>
+                  <option value="profile">profile</option>
+                </select>
+              </label>
+
+              <label>
+                Status
+                <select
+                  value={newPolicy.status}
+                  onChange={(event) => setNewPolicy((prev) => ({ ...prev, status: event.target.value }))}
+                >
+                  <option value="allowed">allowed</option>
+                  <option value="denied">denied</option>
+                </select>
+              </label>
+
+              <label>
+                Expiry (optional)
+                <input
+                  type="datetime-local"
+                  value={newPolicy.expiry}
+                  onChange={(event) => setNewPolicy((prev) => ({ ...prev, expiry: event.target.value }))}
+                />
+              </label>
+
+              <label>
+                Conditions
+                <input
+                  type="text"
+                  placeholder="daytime only"
+                  value={newPolicy.conditions}
+                  onChange={(event) => setNewPolicy((prev) => ({ ...prev, conditions: event.target.value }))}
+                />
+              </label>
+
+              <button className="btn" type="submit">
+                Save Policy
               </button>
             </form>
           </div>
@@ -154,21 +230,81 @@ function DashboardPage({
           <div className="consent-board">
             <h2>Consent Policies</h2>
             {consents.length === 0 ? (
-              <p>No consent records yet. Create one to start policy control.</p>
+              <p>No policies yet. Create one to start decision-based privacy control.</p>
             ) : (
               <div className="consent-grid">
                 {consents.map((consent) => (
                   <AppCard
                     key={consent._id}
                     consent={consent}
-                    onTogglePermission={onTogglePermission}
+                    appSummary={summaryByApp[consent.appId]}
+                    onUpsert={onUpsertConsent}
                     onRevoke={onRevokeConsent}
-                    onUpdateExpiry={onUpdateExpiry}
+                    onEvaluateDecision={onEvaluateDecision}
                   />
                 ))}
               </div>
             )}
           </div>
+        </section>
+
+        <section id="risk" className="panel">
+          <div className="panel__head">
+            <h2>Risk & Decision Status</h2>
+            <p>System-generated recommendation from privacy risk model.</p>
+          </div>
+
+          {decisionSummary.appSummaries?.length ? (
+            <div className="decision-grid">
+              {decisionSummary.appSummaries.map((summary) => (
+                <article className="decision-card" key={summary.appId}>
+                  <div className="decision-card__top">
+                    <h3>{summary.appId}</h3>
+                    <span className={getIndicatorClass(summary.indicator)}>{summary.indicator}</span>
+                  </div>
+                  <p>Decision: {summary.overallDecision}</p>
+                  <p>Risk Score: {summary.overallRiskScore.toFixed(2)}</p>
+                  <small>{summary.recommendedAction}</small>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>No risk evaluations available yet. Add consent policies and evaluate decisions.</p>
+          )}
+        </section>
+
+        <section id="activity" className="panel">
+          <div className="panel__head">
+            <h2>Activity Logs</h2>
+            <p>Recent data access history used by frequency and anomaly calculations.</p>
+          </div>
+
+          {activities.length ? (
+            <div className="activity-table-wrap">
+              <table className="activity-table">
+                <thead>
+                  <tr>
+                    <th>App</th>
+                    <th>Data Type</th>
+                    <th>Timestamp</th>
+                    <th>Duration (s)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activities.map((item) => (
+                    <tr key={item._id}>
+                      <td>{item.appId}</td>
+                      <td>{item.dataType}</td>
+                      <td>{new Date(item.timestamp).toLocaleString()}</td>
+                      <td>{item.duration}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>No activity logs yet.</p>
+          )}
         </section>
       </main>
     </div>
