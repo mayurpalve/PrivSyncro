@@ -116,8 +116,11 @@ function DashboardPage({
 
         <section id="integrations" className="panel">
           <div className="panel__head">
-            <h2>Live Integrations</h2>
-            <p>Connect your real accounts to capture granted OAuth permission scopes.</p>
+            <h2>Connected via PrivSyncro</h2>
+            <p>
+              Manage integrations connected through PrivSyncro and open provider settings for external app
+              permissions.
+            </p>
           </div>
 
           <div className="integration-grid">
@@ -132,6 +135,7 @@ function DashboardPage({
                   <h3>{provider.label}</h3>
                   {linked ? (
                     <>
+                      <span className="manager-badge">Managed in PrivSyncro</span>
                       <p>Connected as {linked.displayName || linked.email || "Account"}</p>
                       <small>Last sync: {new Date(linked.updatedAt).toLocaleString()}</small>
                       <div className="integration-permissions">
@@ -147,8 +151,18 @@ function DashboardPage({
                         )}
                       </div>
                       <button className="btn btn-secondary" onClick={() => onDisconnectIntegration(provider.key)}>
-                        Disconnect
+                        Revoke in PrivSyncro
                       </button>
+                      {linked.providerManageUrl && (
+                        <a
+                          className="btn btn-linkout"
+                          href={linked.providerManageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Manage in {provider.label}
+                        </a>
+                      )}
                       <button className="btn btn-secondary" onClick={() => onVerifyIntegrationLive(provider.key)}>
                         Verify Live
                       </button>
