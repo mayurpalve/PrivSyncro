@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import AppCard from "../components/AppCard";
 
+const toTitleCase = (value) =>
+  String(value || "")
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+
 function DashboardPage({
   user,
   consents,
   linkedAccounts,
+  integrationHealth,
+  riskMeta,
   liveVerification,
   decisionSummary,
   activities,
@@ -19,7 +28,7 @@ function DashboardPage({
 }) {
   const [newPolicy, setNewPolicy] = useState({
     appId: "",
-    dataType: "location",
+    dataType: "",
     status: "allowed",
     expiry: "",
     conditions: ""
@@ -33,36 +42,80 @@ function DashboardPage({
     return map;
   }, [decisionSummary]);
 
-  const linkedAppOptions = useMemo(() => {
-    const unique = new Map();
+  const providerCatalog = useMemo(() => {
+    const map = new Map();
+
+    for (const provider of integrationHealth?.providers || []) {
+      map.set(provider.provider, {
+        key: provider.provider,
+        label: toTitleCase(provider.provider),
+        configured: Boolean(provider.configured)
+      });
+    }
+
     for (const account of linkedAccounts) {
-      if (!unique.has(account.provider)) {
-        unique.set(account.provider, account);
+      if (!map.has(account.provider)) {
+        map.set(account.provider, {
+          key: account.provider,
+          label: toTitleCase(account.provider),
+          configured: true
+        });
       }
     }
-    return Array.from(unique.values()).map((account) => ({
-      value: account.provider,
-      label: account.displayName ? `${account.provider} (${account.displayName})` : account.provider
-    }));
-  }, [linkedAccounts]);
+
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [integrationHealth, linkedAccounts]);
+
+  const providerOptions = useMemo(() => {
+    return providerCatalog.map((provider) => {
+      const linked = linkedAccounts.find((item) => item.provider === provider.key);
+      const suffix = linked?.displayName ? ` (${linked.displayName})` : "";
+      return {
+        value: provider.key,
+        label: `${provider.label}${suffix}`
+      };
+    });
+  }, [providerCatalog, linkedAccounts]);
+
+  const dataTypeOptions = useMemo(() => {
+    const list = riskMeta?.supportedDataTypes || [];
+    return list.length ? list : ["location", "health", "contacts", "email", "profile"];
+  }, [riskMeta]);
 
   useEffect(() => {
-    if (linkedAppOptions.length === 0) {
+    if (providerOptions.length === 0) {
       return;
     }
 
     setNewPolicy((prev) => {
-      const hasCurrentOption = linkedAppOptions.some((option) => option.value === prev.appId);
+      const hasCurrentOption = providerOptions.some((option) => option.value === prev.appId);
       if (hasCurrentOption) {
         return prev;
       }
 
       return {
         ...prev,
-        appId: linkedAppOptions[0].value
+        appId: providerOptions[0].value
       };
     });
-  }, [linkedAppOptions]);
+  }, [providerOptions]);
+
+  useEffect(() => {
+    if (dataTypeOptions.length === 0) {
+      return;
+    }
+
+    setNewPolicy((prev) => {
+      if (dataTypeOptions.includes(prev.dataType)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        dataType: dataTypeOptions[0]
+      };
+    });
+  }, [dataTypeOptions]);
 
   const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
   const deniedCount = consents.length - activeCount;
@@ -71,8 +124,10 @@ function DashboardPage({
   const statusChecklist = [
     {
       label: "Configuration",
-      details: "JWT, database, and policy services are configured.",
-      ok: true
+      details: integrationHealth?.jwtSecretConfigured
+        ? "JWT and integration settings are configured."
+        : "Backend JWT/integration configuration is incomplete.",
+      ok: Boolean(integrationHealth?.jwtSecretConfigured)
     },
     {
       label: "Integration",
@@ -239,10 +294,8 @@ function DashboardPage({
           </div>
 
           <div className="integration-grid">
-            {[
-              { key: "spotify", label: "Spotify" },
-              { key: "google", label: "Google" }
-            ].map((provider) => {
+            {providerCatalog.length === 0 && <p>No providers configured yet.</p>}
+            {providerCatalog.map((provider) => {
               const linked = linkedAccounts.find((item) => item.provider === provider.key);
 
               return (
@@ -302,8 +355,12 @@ function DashboardPage({
                   ) : (
                     <>
                       <p>Not connected</p>
-                      <button className="btn" onClick={() => onConnectIntegration(provider.key)}>
-                        Connect {provider.label}
+                      <button
+                        className="btn"
+                        onClick={() => onConnectIntegration(provider.key)}
+                        disabled={!provider.configured}
+                      >
+                        {provider.configured ? `Connect ${provider.label}` : `${provider.label} not configured`}
                       </button>
                     </>
                   )}
@@ -316,8 +373,8 @@ function DashboardPage({
         <section className="panel panel--split">
           <div>
             <h2>Create Consent Policy</h2>
-            {linkedAppOptions.length === 0 && (
-              <p>Connect at least one integration first to create a policy.</p>
+            {providerOptions.length === 0 && (
+              <p>No providers available yet. Configure at least one integration in backend.</p>
             )}
             <form className="connect-form" onSubmit={handleCreatePolicy}>
               <label>
@@ -325,13 +382,13 @@ function DashboardPage({
                 <select
                   value={newPolicy.appId}
                   onChange={(event) => setNewPolicy((prev) => ({ ...prev, appId: event.target.value }))}
-                  disabled={linkedAppOptions.length === 0}
+                  disabled={providerOptions.length === 0}
                   required
                 >
-                  {linkedAppOptions.length === 0 ? (
+                  {providerOptions.length === 0 ? (
                     <option value="">No connected apps</option>
                   ) : (
-                    linkedAppOptions.map((option) => (
+                    providerOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -346,11 +403,11 @@ function DashboardPage({
                   value={newPolicy.dataType}
                   onChange={(event) => setNewPolicy((prev) => ({ ...prev, dataType: event.target.value }))}
                 >
-                  <option value="location">location</option>
-                  <option value="health">health</option>
-                  <option value="contacts">contacts</option>
-                  <option value="email">email</option>
-                  <option value="profile">profile</option>
+                  {dataTypeOptions.map((dataType) => (
+                    <option key={dataType} value={dataType}>
+                      {dataType}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -387,7 +444,7 @@ function DashboardPage({
               <button
                 className="btn"
                 type="submit"
-                disabled={linkedAppOptions.length === 0 || !newPolicy.appId.trim() || !newPolicy.dataType.trim()}
+                disabled={providerOptions.length === 0 || !newPolicy.appId.trim() || !newPolicy.dataType.trim()}
               >
                 Save Policy
               </button>

@@ -15,6 +15,8 @@ function App() {
 
   const [consents, setConsents] = useState([]);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const [integrationHealth, setIntegrationHealth] = useState({ providers: [] });
+  const [riskMeta, setRiskMeta] = useState({ supportedDataTypes: [] });
   const [liveVerification, setLiveVerification] = useState({});
   const [decisionSummary, setDecisionSummary] = useState({
     appSummaries: [],
@@ -40,6 +42,8 @@ function App() {
     setUser(null);
     setConsents([]);
     setLinkedAccounts([]);
+    setIntegrationHealth({ providers: [] });
+    setRiskMeta({ supportedDataTypes: [] });
     setLiveVerification({});
     setDecisionSummary({
       appSummaries: [],
@@ -59,6 +63,16 @@ function App() {
     setLinkedAccounts(response.data);
   };
 
+  const fetchIntegrationHealth = async () => {
+    const response = await API.get("/integrations/health");
+    setIntegrationHealth(response.data);
+  };
+
+  const fetchRiskMeta = async () => {
+    const response = await API.get("/risk/meta");
+    setRiskMeta(response.data);
+  };
+
   const fetchDecisionSummary = async () => {
     const response = await API.get("/decision/summary");
     setDecisionSummary(response.data);
@@ -75,6 +89,8 @@ function App() {
       await Promise.all([
         fetchConsents(),
         fetchLinkedAccounts(),
+        fetchIntegrationHealth(),
+        fetchRiskMeta(),
         fetchDecisionSummary(),
         fetchActivities()
       ]);
@@ -244,6 +260,8 @@ function App() {
           user={user}
           consents={consents}
           linkedAccounts={linkedAccounts}
+          integrationHealth={integrationHealth}
+          riskMeta={riskMeta}
           liveVerification={liveVerification}
           decisionSummary={decisionSummary}
           activities={activities}
