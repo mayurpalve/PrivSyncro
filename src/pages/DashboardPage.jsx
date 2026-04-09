@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppCard from "../components/AppCard";
 
 function DashboardPage({
@@ -45,6 +45,24 @@ function DashboardPage({
       label: account.displayName ? `${account.provider} (${account.displayName})` : account.provider
     }));
   }, [linkedAccounts]);
+
+  useEffect(() => {
+    if (linkedAppOptions.length === 0) {
+      return;
+    }
+
+    setNewPolicy((prev) => {
+      const hasCurrentOption = linkedAppOptions.some((option) => option.value === prev.appId);
+      if (hasCurrentOption) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        appId: linkedAppOptions[0].value
+      };
+    });
+  }, [linkedAppOptions]);
 
   const activeCount = consents.filter((consent) => consent.effectiveStatus === "allowed").length;
   const deniedCount = consents.length - activeCount;
@@ -366,7 +384,11 @@ function DashboardPage({
                 />
               </label>
 
-              <button className="btn" type="submit" disabled={linkedAppOptions.length === 0}>
+              <button
+                className="btn"
+                type="submit"
+                disabled={linkedAppOptions.length === 0 || !newPolicy.appId.trim() || !newPolicy.dataType.trim()}
+              >
                 Save Policy
               </button>
             </form>
