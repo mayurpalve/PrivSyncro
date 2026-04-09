@@ -17,6 +17,18 @@ function App() {
   const [linkedAccounts, setLinkedAccounts] = useState([]);
   const [integrationHealth, setIntegrationHealth] = useState({ providers: [] });
   const [riskMeta, setRiskMeta] = useState({ supportedDataTypes: [] });
+  const [governanceSummary, setGovernanceSummary] = useState({
+    title: "",
+    subtitle: "",
+    overall: {
+      baselineRisk: 0,
+      governedRisk: 0,
+      optimizedRisk: 0,
+      measurablePrivacyImprovementPct: 0,
+      controlCoveragePct: 0
+    },
+    recommendations: []
+  });
   const [liveVerification, setLiveVerification] = useState({});
   const [decisionSummary, setDecisionSummary] = useState({
     appSummaries: [],
@@ -44,6 +56,18 @@ function App() {
     setLinkedAccounts([]);
     setIntegrationHealth({ providers: [] });
     setRiskMeta({ supportedDataTypes: [] });
+    setGovernanceSummary({
+      title: "",
+      subtitle: "",
+      overall: {
+        baselineRisk: 0,
+        governedRisk: 0,
+        optimizedRisk: 0,
+        measurablePrivacyImprovementPct: 0,
+        controlCoveragePct: 0
+      },
+      recommendations: []
+    });
     setLiveVerification({});
     setDecisionSummary({
       appSummaries: [],
@@ -78,6 +102,11 @@ function App() {
     setDecisionSummary(response.data);
   };
 
+  const fetchGovernanceSummary = async () => {
+    const response = await API.get("/governance/summary");
+    setGovernanceSummary(response.data);
+  };
+
   const fetchActivities = async () => {
     const response = await API.get("/activity", { params: { limit: 50 } });
     setActivities(response.data);
@@ -92,6 +121,7 @@ function App() {
         fetchIntegrationHealth(),
         fetchRiskMeta(),
         fetchDecisionSummary(),
+        fetchGovernanceSummary(),
         fetchActivities()
       ]);
     } catch (error) {
@@ -161,7 +191,7 @@ function App() {
       setLoading(true);
       setMessage("");
       await API.post("/consent", payload);
-      await Promise.all([fetchConsents(), fetchDecisionSummary()]);
+      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary()]);
       setMessage("Consent policy saved");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to save consent policy");
@@ -173,7 +203,7 @@ function App() {
   const handleRevokeConsent = async (consentId) => {
     try {
       await API.patch(`/consent/${consentId}/revoke`);
-      await Promise.all([fetchConsents(), fetchDecisionSummary()]);
+      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary()]);
       setMessage("Consent policy revoked");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to revoke consent");
@@ -185,7 +215,7 @@ function App() {
       setLoading(true);
       setMessage("");
       const response = await API.post("/decision", { appId, dataType, duration });
-      await Promise.all([fetchDecisionSummary(), fetchActivities()]);
+      await Promise.all([fetchDecisionSummary(), fetchGovernanceSummary(), fetchActivities()]);
       setMessage(
         `Decision: ${response.data.decision} | Risk: ${Number(response.data.riskScore).toFixed(2)}`
       );
@@ -262,6 +292,7 @@ function App() {
           linkedAccounts={linkedAccounts}
           integrationHealth={integrationHealth}
           riskMeta={riskMeta}
+          governanceSummary={governanceSummary}
           liveVerification={liveVerification}
           decisionSummary={decisionSummary}
           activities={activities}

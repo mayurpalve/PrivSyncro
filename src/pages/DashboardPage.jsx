@@ -14,6 +14,7 @@ function DashboardPage({
   linkedAccounts,
   integrationHealth,
   riskMeta,
+  governanceSummary,
   liveVerification,
   decisionSummary,
   activities,
@@ -470,6 +471,54 @@ function DashboardPage({
               </div>
             )}
           </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel__head">
+            <h2>{governanceSummary?.title || "Adaptive Governance"}</h2>
+            <p>
+              {governanceSummary?.subtitle ||
+                "Enabling measurable privacy improvement and intelligent consent control."}
+            </p>
+          </div>
+
+          <div className="mini-metrics">
+            <div>
+              <small>Baseline Risk</small>
+              <strong>{Number(governanceSummary?.overall?.baselineRisk || 0).toFixed(2)}</strong>
+            </div>
+            <div>
+              <small>Optimized Risk</small>
+              <strong>{Number(governanceSummary?.overall?.optimizedRisk || 0).toFixed(2)}</strong>
+            </div>
+            <div>
+              <small>Privacy Improvement</small>
+              <strong>{Number(governanceSummary?.overall?.measurablePrivacyImprovementPct || 0).toFixed(1)}%</strong>
+            </div>
+          </div>
+
+          {governanceSummary?.recommendations?.length ? (
+            <div className="decision-grid">
+              {governanceSummary.recommendations.slice(0, 6).map((item) => (
+                <article className="decision-card" key={`${item.appId}-${item.dataType}`}>
+                  <div className="decision-card__top">
+                    <h3>
+                      {item.appId} · {item.dataType}
+                    </h3>
+                    <span className={getIndicatorClass(item.priority === "HIGH" ? "RED" : item.priority === "MEDIUM" ? "YELLOW" : "GREEN")}>
+                      {item.priority}
+                    </span>
+                  </div>
+                  <p>
+                    Current: {Number(item.currentRisk).toFixed(2)} -> Optimized: {Number(item.optimizedRisk).toFixed(2)}
+                  </p>
+                  <small>{item.recommendedControls?.[0] || "No action required"}</small>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>No governance recommendations yet.</p>
+          )}
         </section>
 
         <section className="panel">
