@@ -166,6 +166,8 @@ function App() {
 
   const handleEvaluateDecision = async ({ appId, dataType, duration = 60 }) => {
     try {
+      setLoading(true);
+      setMessage("");
       const response = await API.post("/decision", { appId, dataType, duration });
       await Promise.all([fetchDecisionSummary(), fetchActivities()]);
       setMessage(
@@ -173,6 +175,8 @@ function App() {
       );
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to evaluate decision");
+    } finally {
+      setLoading(false);
     }
   };
 
