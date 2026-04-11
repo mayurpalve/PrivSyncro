@@ -29,6 +29,19 @@ function App() {
     },
     recommendations: []
   });
+  const [analysisBoard, setAnalysisBoard] = useState({
+    title: "",
+    subtitle: "",
+    overall: {
+      totalApps: 0,
+      averageRiskAcrossApps: 0,
+      averageAnomalyTraffic: 0,
+      highRiskPolicies: 0,
+      suspiciousTransfers: 0
+    },
+    appAnalyses: [],
+    aiInsights: []
+  });
   const [liveVerification, setLiveVerification] = useState({});
   const [decisionSummary, setDecisionSummary] = useState({
     appSummaries: [],
@@ -38,6 +51,25 @@ function App() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  const generateMockTelemetry = (dataType) => {
+    const baseLat = 18.5204;
+    const baseLng = 73.8567;
+    const jitter = () => (Math.random() - 0.5) * 0.04;
+    const payloadSizeKb = Math.floor(Math.random() * (dataType === "media" ? 2500 : 700)) + 40;
+
+    return {
+      payloadSizeKb,
+      location:
+        dataType === "location" || dataType === "social_graph"
+          ? {
+              lat: Number((baseLat + jitter()).toFixed(6)),
+              lng: Number((baseLng + jitter()).toFixed(6)),
+              accuracyMeters: Math.floor(Math.random() * 80) + 10
+            }
+          : null
+    };
+  };
 
   const saveSession = (responseData) => {
     localStorage.setItem("token", responseData.token);
@@ -67,6 +99,19 @@ function App() {
         controlCoveragePct: 0
       },
       recommendations: []
+    });
+    setAnalysisBoard({
+      title: "",
+      subtitle: "",
+      overall: {
+        totalApps: 0,
+        averageRiskAcrossApps: 0,
+        averageAnomalyTraffic: 0,
+        highRiskPolicies: 0,
+        suspiciousTransfers: 0
+      },
+      appAnalyses: [],
+      aiInsights: []
     });
     setLiveVerification({});
     setDecisionSummary({
@@ -107,6 +152,11 @@ function App() {
     setGovernanceSummary(response.data);
   };
 
+  const fetchAnalysisBoard = async () => {
+    const response = await API.get("/analytics/board");
+    setAnalysisBoard(response.data);
+  };
+
   const fetchActivities = async () => {
     const response = await API.get("/activity", { params: { limit: 50 } });
     setActivities(response.data);
@@ -122,6 +172,7 @@ function App() {
         fetchRiskMeta(),
         fetchDecisionSummary(),
         fetchGovernanceSummary(),
+        fetchAnalysisBoard(),
         fetchActivities()
       ]);
     } catch (error) {
@@ -191,7 +242,7 @@ function App() {
       setLoading(true);
       setMessage("");
       await API.post("/consent", payload);
-      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary()]);
+      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary(), fetchAnalysisBoard()]);
       setMessage("Consent policy saved");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to save consent policy");
@@ -203,7 +254,7 @@ function App() {
   const handleRevokeConsent = async (consentId) => {
     try {
       await API.patch(`/consent/${consentId}/revoke`);
-      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary()]);
+      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary(), fetchAnalysisBoard()]);
       setMessage("Consent policy revoked");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to revoke consent");
@@ -214,10 +265,13 @@ function App() {
     try {
       setLoading(true);
       setMessage("");
-      const response = await API.post("/decision", { appId, dataType, duration });
-      await Promise.all([fetchDecisionSummary(), fetchGovernanceSummary(), fetchActivities()]);
+      const telemetry = generateMockTelemetry(dataType);
+      const response = await API.post("/decision", { appId, dataType, duration, ...telemetry });
+      await Promise.all([fetchDecisionSummary(), fetchGovernanceSummary(), fetchAnalysisBoard(), fetchActivities()]);
       setMessage(
-        `Decision: ${response.data.decision} | Risk: ${Number(response.data.riskScore).toFixed(2)}`
+        `Decision: ${response.data.decision} | Risk: ${Number(response.data.riskScore).toFixed(2)}${
+          response.data.transferFlags?.length ? ` | Flags: ${response.data.transferFlags.join(", ")}` : ""
+        }`
       );
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to evaluate decision");
@@ -293,6 +347,7 @@ function App() {
           integrationHealth={integrationHealth}
           riskMeta={riskMeta}
           governanceSummary={governanceSummary}
+          analysisBoard={analysisBoard}
           liveVerification={liveVerification}
           decisionSummary={decisionSummary}
           activities={activities}

@@ -15,6 +15,7 @@ function DashboardPage({
   integrationHealth,
   riskMeta,
   governanceSummary,
+  analysisBoard,
   liveVerification,
   decisionSummary,
   activities,
@@ -475,6 +476,80 @@ function DashboardPage({
 
         <section className="panel">
           <div className="panel__head">
+            <h2>{analysisBoard?.title || "Data & Risk Analysis Board"}</h2>
+            <p>
+              {analysisBoard?.subtitle ||
+                "Unified app-wise risk, anomaly traffic detection, and AI-driven governance insights."}
+            </p>
+          </div>
+
+          <div className="mini-metrics">
+            <div>
+              <small>Apps Monitored</small>
+              <strong>{analysisBoard?.overall?.totalApps || 0}</strong>
+            </div>
+            <div>
+              <small>Avg Risk</small>
+              <strong>{Number(analysisBoard?.overall?.averageRiskAcrossApps || 0).toFixed(2)}</strong>
+            </div>
+            <div>
+              <small>Avg Anomaly</small>
+              <strong>{Number(analysisBoard?.overall?.averageAnomalyTraffic || 0).toFixed(2)}</strong>
+            </div>
+            <div>
+              <small>Suspicious Transfers (30d)</small>
+              <strong>{analysisBoard?.overall?.suspiciousTransfers || 0}</strong>
+            </div>
+          </div>
+
+          {analysisBoard?.appAnalyses?.length ? (
+            <div className="decision-grid">
+              {analysisBoard.appAnalyses.map((item) => (
+                <article className="decision-card" key={item.appId}>
+                  <div className="decision-card__top">
+                    <h3>{item.appId}</h3>
+                    <span
+                      className={getIndicatorClass(
+                        item.anomalyTrafficScore > 0.7 ? "RED" : item.anomalyTrafficScore > 0.5 ? "YELLOW" : "GREEN"
+                      )}
+                    >
+                      Anomaly {Number(item.anomalyTrafficScore).toFixed(2)}
+                    </span>
+                  </div>
+                  <p>Average Risk: {Number(item.averageRisk).toFixed(2)}</p>
+                  <p>
+                    Traffic 24h: {item.traffic?.last24h || 0} | Prev 24h: {item.traffic?.prev24h || 0}
+                  </p>
+                  <p>Suspicious Transfers (30d): {item.suspiciousTransfers || 0}</p>
+                  <small>
+                    {item.highRiskDataTypes?.length
+                      ? `High-risk data: ${item.highRiskDataTypes.join(", ")}`
+                      : "No high-risk data types flagged"}
+                  </small>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>No analysis data yet.</p>
+          )}
+
+          <div className="panel__head" style={{ marginTop: "0.85rem" }}>
+            <h2>AI Insights</h2>
+            <p>Adaptive recommendations based on observed risk and traffic behavior.</p>
+          </div>
+          {analysisBoard?.aiInsights?.length ? (
+            <ul className="integration-scope-list">
+              {analysisBoard.aiInsights.map((insight, index) => (
+                <li key={`${index}-${insight}`}>{insight}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>No AI insights available yet.</p>
+          )}
+        </section>
+
+        <section className="panel">
+          <div className="panel__head">
             <h2>{governanceSummary?.title || "Adaptive Governance"}</h2>
             <p>
               {governanceSummary?.subtitle ||
@@ -561,6 +636,9 @@ function DashboardPage({
                     <th>Data Type</th>
                     <th>Timestamp</th>
                     <th>Duration (s)</th>
+                    <th>Payload (KB)</th>
+                    <th>Location</th>
+                    <th>Flags</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -570,6 +648,13 @@ function DashboardPage({
                       <td>{item.dataType}</td>
                       <td>{new Date(item.timestamp).toLocaleString()}</td>
                       <td>{item.duration}</td>
+                      <td>{item.payloadSizeKb ?? 0}</td>
+                      <td>
+                        {Number.isFinite(item.location?.lat) && Number.isFinite(item.location?.lng)
+                          ? `${item.location.lat}, ${item.location.lng}`
+                          : "-"}
+                      </td>
+                      <td>{item.transferFlags?.length ? item.transferFlags.join(", ") : "-"}</td>
                     </tr>
                   ))}
                 </tbody>

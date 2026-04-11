@@ -20,7 +20,7 @@ function RegisterPage({ onRegister, switchToLogin }) {
         <form onSubmit={handleSubmit} className="auth-form auth-form--minimal">
           <label>
             <span>Username</span>
-            <input type="text" name="name" placeholder="Mayur" required />
+            <input type="text" name="name" placeholder="Your name" required />
           </label>
 
           <label>
