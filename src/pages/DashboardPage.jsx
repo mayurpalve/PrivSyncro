@@ -69,15 +69,21 @@ function DashboardPage({
   }, [integrationHealth, linkedAccounts]);
 
   const providerOptions = useMemo(() => {
-    return providerCatalog.map((provider) => {
-      const linked = linkedAccounts.find((item) => item.provider === provider.key);
-      const suffix = linked?.displayName ? ` (${linked.displayName})` : "";
-      return {
-        value: provider.key,
-        label: `${provider.label}${suffix}`
-      };
-    });
-  }, [providerCatalog, linkedAccounts]);
+    const uniqueLinkedProviders = new Map();
+
+    for (const account of linkedAccounts) {
+      if (!uniqueLinkedProviders.has(account.provider)) {
+        uniqueLinkedProviders.set(account.provider, account);
+      }
+    }
+
+    return Array.from(uniqueLinkedProviders.values()).map((account) => ({
+      value: account.provider,
+      label: account.displayName
+        ? `${toTitleCase(account.provider)} (${account.displayName})`
+        : toTitleCase(account.provider)
+    }));
+  }, [linkedAccounts]);
 
   const dataTypeOptions = useMemo(() => {
     const list = riskMeta?.supportedDataTypes || [];
@@ -376,7 +382,7 @@ function DashboardPage({
           <div>
             <h2>Create Consent Policy</h2>
             {providerOptions.length === 0 && (
-              <p>No providers available yet. Configure at least one integration in backend.</p>
+              <p>Connect and verify at least one provider to create a consent policy.</p>
             )}
             <form className="connect-form" onSubmit={handleCreatePolicy}>
               <label>
