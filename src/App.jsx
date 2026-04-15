@@ -261,6 +261,16 @@ function App() {
     }
   };
 
+  const handleDeleteConsent = async (consentId) => {
+    try {
+      await API.delete(`/consent/${consentId}`);
+      await Promise.all([fetchConsents(), fetchDecisionSummary(), fetchGovernanceSummary(), fetchAnalysisBoard()]);
+      setMessage("Consent policy deleted");
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to delete consent policy");
+    }
+  };
+
   const handleEvaluateDecision = async ({ appId, dataType, duration = 60 }) => {
     try {
       setLoading(true);
@@ -353,6 +363,7 @@ function App() {
           activities={activities}
           onUpsertConsent={handleUpsertConsent}
           onRevokeConsent={handleRevokeConsent}
+          onDeleteConsent={handleDeleteConsent}
           onEvaluateDecision={handleEvaluateDecision}
           onConnectIntegration={handleConnectIntegration}
           onDisconnectIntegration={handleDisconnectIntegration}

@@ -21,6 +21,7 @@ function DashboardPage({
   activities,
   onUpsertConsent,
   onRevokeConsent,
+  onDeleteConsent,
   onEvaluateDecision,
   onConnectIntegration,
   onDisconnectIntegration,
@@ -494,6 +495,7 @@ function DashboardPage({
                     appSummary={summaryByApp[consent.appId]}
                     onUpsert={onUpsertConsent}
                     onRevoke={onRevokeConsent}
+                    onDelete={onDeleteConsent}
                     onEvaluateDecision={onEvaluateDecision}
                   />
                 ))}

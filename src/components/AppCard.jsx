@@ -15,7 +15,7 @@ function normalizeConditionsInput(value) {
   return text;
 }
 
-function AppCard({ consent, appSummary, onUpsert, onRevoke, onEvaluateDecision }) {
+function AppCard({ consent, appSummary, onUpsert, onRevoke, onDelete, onEvaluateDecision }) {
   const { _id, appId, dataType, status, expiry, conditions, effectiveStatus, isExpired } = consent;
 
   const initialExpiry = expiry ? new Date(expiry).toISOString().slice(0, 16) : "";
@@ -88,6 +88,11 @@ function AppCard({ consent, appSummary, onUpsert, onRevoke, onEvaluateDecision }
           <button className="btn btn-danger" type="button" onClick={() => onRevoke(_id)}>
             Revoke
           </button>
+          {effectiveStatus !== "allowed" && (
+            <button className="btn btn-danger" type="button" onClick={() => onDelete(_id)}>
+              Delete Policy
+            </button>
+          )}
         </div>
       </form>
     </article>
