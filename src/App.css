@@ -1,16 +1,22 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+
 :root {
-  --bg: #f4f7fb;
+  --bg: #eef4f7;
+  --bg-grad: radial-gradient(circle at 20% 0%, #fff8e9 0%, transparent 40%),
+    radial-gradient(circle at 80% 10%, #e6f5ff 0%, transparent 42%),
+    #eef4f7;
   --panel: #ffffff;
-  --panel-soft: #f8fbff;
-  --line: #dbe5ef;
-  --text: #0f2b4b;
-  --muted: #7e91a8;
-  --accent: #0c67a9;
-  --accent-dark: #084d80;
-  --accent-soft: #e9f4ff;
-  --ok: #15b981;
-  --warn: #f1a827;
-  --danger: #ea4d5c;
+  --panel-soft: #f5fbff;
+  --line: #cddde8;
+  --text: #102538;
+  --muted: #5f748a;
+  --accent: #0d7b71;
+  --accent-dark: #085b54;
+  --accent-soft: #ddf5f1;
+  --ok: #0f9f6e;
+  --warn: #e08d11;
+  --danger: #d84d5a;
+  --shadow-soft: 0 12px 28px rgba(22, 50, 74, 0.08);
 }
 
 * {
@@ -19,8 +25,8 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  background: var(--bg);
+  font-family: "Manrope", "Segoe UI", Tahoma, sans-serif;
+  background: var(--bg-grad);
   color: var(--text);
 }
 
@@ -35,10 +41,10 @@ body {
 
 .alert-bar {
   margin: 0;
-  border-bottom: 1px solid #cfe2f3;
-  background: #ebf6ff;
-  color: #2f6089;
-  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #d7e8df;
+  background: #ecf9f6;
+  color: #1f5e56;
+  padding: 0.72rem 1rem;
   font-size: 0.92rem;
 }
 
@@ -54,6 +60,7 @@ button,
 .btn {
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 6px 16px rgba(13, 123, 113, 0.24);
 }
 
 .btn:hover {
@@ -217,8 +224,8 @@ button.link-btn {
 }
 
 .left-nav {
-  border-right: 1px solid #d9e5f0;
-  background: #f7fbff;
+  border-right: 1px solid #d7e3ec;
+  background: linear-gradient(180deg, #f9fcff 0%, #f0f7fb 100%);
   padding: 1.3rem 1.1rem;
   display: grid;
   grid-template-rows: auto 1fr auto auto;
@@ -226,10 +233,11 @@ button.link-btn {
 }
 
 .brand {
-  font-size: 2.15rem;
-  font-weight: 800;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #102a49;
+  color: #14314f;
 }
 
 .left-nav nav {
@@ -240,18 +248,22 @@ button.link-btn {
 
 .nav-item {
   text-align: left;
-  background: transparent;
+  background: #eef5fb;
   border: 1px solid transparent;
-  color: #6f849b;
+  color: #44627d;
+  transition: all 0.2s ease;
 }
 
 .nav-item:hover {
-  background: #eaf3fb;
+  background: #e0ecf7;
+  transform: translateX(2px);
 }
 
 .nav-item--active {
-  background: var(--accent);
+  background: linear-gradient(140deg, #0d7b71, #0a665f);
   color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 20px rgba(13, 123, 113, 0.25);
 }
 
 .help-card {
@@ -276,21 +288,24 @@ button.link-btn {
   padding: 1.1rem 1.5rem 2rem;
   display: grid;
   gap: 1rem;
+  scroll-behavior: smooth;
 }
 
 .top-bar {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 1rem 1.15rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: var(--shadow-soft);
 }
 
 .top-bar h1 {
   margin: 0;
-  font-size: 2rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
 }
 
 .top-bar p {
@@ -307,8 +322,9 @@ button.link-btn {
 .metric-card {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 0.9rem 1rem;
+  box-shadow: var(--shadow-soft);
 }
 
 .metric-card p {
@@ -322,7 +338,7 @@ button.link-btn {
 }
 
 .metric-card--accent {
-  background: linear-gradient(150deg, #0f66a6, #0a4a7b);
+  background: linear-gradient(150deg, #0d7b71, #0b5d57);
   color: #fff;
 }
 
@@ -341,8 +357,9 @@ button.link-btn {
 .panel {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 1rem 1.15rem;
+  box-shadow: var(--shadow-soft);
 }
 
 .panel-head {
@@ -390,14 +407,14 @@ button.link-btn {
   margin-top: 1rem;
   width: 100%;
   height: 170px;
-  border: 1px solid #d7e3ef;
+  border: 1px solid #d8e5ee;
   border-radius: 14px;
-  background: linear-gradient(180deg, #fafdff, #edf6ff);
+  background: linear-gradient(180deg, #fbfeff, #edf8f6);
 }
 
 .line-chart polyline {
   fill: none;
-  stroke: #3484bf;
+  stroke: #0d7b71;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;

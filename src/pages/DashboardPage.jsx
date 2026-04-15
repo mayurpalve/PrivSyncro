@@ -28,6 +28,23 @@ function DashboardPage({
   onRefreshDashboard,
   onLogout
 }) {
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const navItems = [
+    { key: "dashboard", label: "Dashboard", targetId: "section-dashboard" },
+    { key: "integrations", label: "Integrations", targetId: "section-integrations" },
+    { key: "policies", label: "Policies", targetId: "section-policies" },
+    { key: "analysis", label: "Analysis", targetId: "section-analysis" },
+    { key: "activity", label: "Activity", targetId: "section-activity" }
+  ];
+
+  const handleNavClick = (item) => {
+    setActiveSection(item.key);
+    const element = document.getElementById(item.targetId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   const [newPolicy, setNewPolicy] = useState({
     appId: "",
     dataType: "",
@@ -202,11 +219,15 @@ function DashboardPage({
       <aside className="left-nav">
         <div className="brand">PrivSyncro</div>
         <nav>
-          <button className="nav-item nav-item--active">Dashboard</button>
-          <button className="nav-item">Integrations</button>
-          <button className="nav-item">Policies</button>
-          <button className="nav-item">Risk</button>
-          <button className="nav-item">Settings</button>
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              className={`nav-item ${activeSection === item.key ? "nav-item--active" : ""}`}
+              onClick={() => handleNavClick(item)}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
 
         <div className="help-card">
@@ -233,7 +254,7 @@ function DashboardPage({
           </div>
         </header>
 
-        <section className="stats-row">
+        <section id="section-dashboard" className="stats-row">
           <article className="metric-card">
             <p>Policy Displays</p>
             <h3>{consents.length}</h3>
@@ -295,7 +316,7 @@ function DashboardPage({
           </article>
         </section>
 
-        <section className="panel">
+        <section id="section-integrations" className="panel">
           <div className="panel__head">
             <h2>Connected Providers</h2>
             <p>Connect, verify, and manage provider-level permissions.</p>
@@ -368,8 +389,9 @@ function DashboardPage({
                         onClick={() => onConnectIntegration(provider.key)}
                         disabled={!provider.configured}
                       >
-                        {provider.configured ? `Connect ${provider.label}` : `${provider.label} not configured`}
+                        Connect {provider.label}
                       </button>
+                      {!provider.configured && <small>Provider setup is incomplete in backend env.</small>}
                     </>
                   )}
                 </article>
@@ -378,7 +400,7 @@ function DashboardPage({
           </div>
         </section>
 
-        <section className="panel panel--split">
+        <section id="section-policies" className="panel panel--split">
           <div>
             <h2>Create Consent Policy</h2>
             {providerOptions.length === 0 && (
@@ -480,7 +502,7 @@ function DashboardPage({
           </div>
         </section>
 
-        <section className="panel">
+        <section id="section-analysis" className="panel">
           <div className="panel__head">
             <h2>{analysisBoard?.title || "Data & Risk Analysis Board"}</h2>
             <p>
@@ -554,7 +576,7 @@ function DashboardPage({
           )}
         </section>
 
-        <section className="panel">
+        <section id="section-activity" className="panel">
           <div className="panel__head">
             <h2>{governanceSummary?.title || "Adaptive Governance"}</h2>
             <p>
