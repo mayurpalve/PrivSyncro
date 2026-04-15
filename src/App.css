@@ -230,6 +230,11 @@ button.link-btn {
   display: grid;
   grid-template-rows: auto 1fr auto auto;
   gap: 1rem;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .brand {
@@ -736,7 +741,7 @@ button.link-btn {
 
   .left-nav {
     grid-template-rows: auto;
-    position: static;
+    height: auto;
   }
 
   .help-card {
